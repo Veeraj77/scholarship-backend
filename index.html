@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScholarBot Simple Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        #chat-window {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .message-box {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+        }
+        .user {
+            background-color: #e1ffc7;
+            text-align: right;
+            border-left: 3px solid #4CAF50;
+        }
+        .assistant {
+            background-color: #fff;
+            text-align: left;
+            border-left: 3px solid #007bff;
+        }
+        .sources {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+            border-top: 1px dashed #ccc;
+            padding-top: 5px;
+        }
+        input[type="text"] {
+            width: calc(100% - 80px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 70px;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>ScholarBot RAG Interface</h1>
+    <div id="chat-window">
+        <div class="message-box assistant">
+            Hello! I am ScholarBot, powered by Gemini. Ask me about Indian scholarship eligibility and documents.
+        </div>
+    </div>
+    <form id="query-form">
+        <input type="text" id="query-input" placeholder="Ask your question here..." required>
+        <button type="submit">Send</button>
+    </form>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000/query";
+        const form = document.getElementById('query-form');
+        const input = document.getElementById('query-input');
+        const chatWindow = document.getElementById('chat-window');
+
+        // Function to scroll chat window to the bottom
+        const scrollToBottom = () => {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        };
+
+        // Function to add a message to the chat window
+        const addMessage = (role, content, sources = []) => {
+            const messageBox = document.createElement('div');
+            messageBox.className = `message-box ${role}`;
+            
+            // Add main content
+            const contentPara = document.createElement('p');
+            contentPara.textContent = content;
+            messageBox.appendChild(contentPara);
+
+            // Add sources if available
+            if (sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources';
+                sourcesDiv.textContent = 'Sources: ' + sources.join(', ');
+                messageBox.appendChild(sourcesDiv);
+            }
+
+            chatWindow.appendChild(messageBox);
+            scrollToBottom();
+        };
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = input.value.trim();
+            if (!query) return;
+
+            // Display user query
+            addMessage('user', query);
+            input.value = ''; // Clear input
+
+            // Show 'thinking' message
+            const thinkingMessage = document.createElement('div');
+            thinkingMessage.className = 'message-box assistant thinking';
+            thinkingMessage.textContent = 'ScholarBot is thinking...';
+            chatWindow.appendChild(thinkingMessage);
+            scrollToBottom();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                // Remove 'thinking' message
+                chatWindow.removeChild(thinkingMessage);
+
+                if (!response.ok) {
+                    addMessage('assistant', `API Error: ${response.status} ${response.statusText}. Check server terminal.`);
+                    return;
+                }
+
+                const data = await response.json();
+                
+                // Display assistant answer with sources
+                addMessage('assistant', data.answer, data.sources);
+
+            } catch (error) {
+                // Remove 'thinking' message if still present (in case of connection error)
+                if (chatWindow.contains(thinkingMessage)) {
+                    chatWindow.removeChild(thinkingMessage);
+                }
+                addMessage('assistant', `Connection Error: Failed to reach API. Is your Uvicorn server running?`);
+                console.error('Fetch error:', error);
+            }
+        });
+        
+        scrollToBottom(); // Ensure initial message is visible
+    </script>
+</body>
+</html>

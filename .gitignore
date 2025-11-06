@@ -1,0 +1,16 @@
+# .gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.venv
+venv/
+.env
+
+# FAISS - if you re-create it locally
+# (If your index is permanent, you can remove this)
+# faiss_index/
